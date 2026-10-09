@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AutoCut — অটোমেটিক ভিডিও এডিটর</title>
+<meta name="description" content="ব্রাউজারেই চলে: ভিডিও + অডিও + লোগো দিলে অটো এডিট হয়ে MP4 এক্সপোর্ট।">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="mode-upload">
+
+<header class="topbar">
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="4" fill="#3b82f6"/><path d="M10 9l5 3-5 3V9z" fill="#fff"/></svg>
+    <div><b>AutoCut</b><small>ব্রাউজারেই ভিডিও এডিট</small></div>
+  </div>
+  <div class="top-actions editor-only">
+    <button class="btn icon" id="btnUndo" title="Undo (Ctrl+Z)" disabled>↶ <span class="hide-sm">Undo</span></button>
+    <button class="btn icon" id="btnRedo" title="Redo (Ctrl+Shift+Z)" disabled>↷ <span class="hide-sm">Redo</span></button>
+    <button class="btn primary" id="btnExport">⬇ Export MP4</button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- বাম: ফাইল -->
+  <aside class="panel files" id="filesPanel">
+    <div class="upload-intro">
+      <h1>ভিডিও ও অডিও আপলোড করুন</h1>
+      <p>শুধু <b>Main Video</b> আর <b>Main Audio</b> দিলেই হবে। দুটো দেওয়ার সাথে সাথে এডিটর নিজে খুলে যাবে এবং ভিডিও অটো তৈরি হবে। ফাইল আপনার ব্রাউজারেই থাকে, কোথাও আপলোড হয় না।</p>
+    </div>
+
+    <div class="cards">
+      <div class="card" data-kind="video">
+        <label class="drop" for="in-video">
+          <span class="ic">🎬</span>
+          <span class="txt"><b>Main Video <em class="req">বাধ্যতামূলক</em></b><small>MP4, WebM বা ব্রাউজার-সমর্থিত ভিডিও</small></span>
+        </label>
+        <input id="in-video" type="file" accept="video/*" hidden>
+        <div class="meta" id="meta-video"></div>
+        <div class="card-actions"><button class="mini danger hidden" data-remove="video">সরান</button></div>
+      </div>
+
+      <div class="card" data-kind="main">
+        <label class="drop" for="in-main">
+          <span class="ic">🎵</span>
+          <span class="txt"><b>Main Audio <em class="req">বাধ্যতামূলক</em></b><small>MP3, AAC, WAV, M4A — এর দৈর্ঘ্যই ভিডিওর দৈর্ঘ্য</small></span>
+        </label>
+        <input id="in-main" type="file" accept="audio/*,.aac,.m4a,.mp3,.wav,.ogg,.flac,.opus" hidden>
+        <div class="meta" id="meta-main"></div>
+        <div class="card-actions"><button class="mini danger hidden" data-remove="main">সরান</button></div>
+      </div>
+
+      <div class="card" data-kind="bg">
+        <label class="drop" for="in-bg">
+          <span class="ic">🎶</span>
+          <span class="txt"><b>Background Audio <em class="opt">ঐচ্ছিক</em></b><small>ছোট হলে রিপিট, বড় হলে শেষে কাটা</small></span>
+        </label>
+        <input id="in-bg" type="file" accept="audio/*,.aac,.m4a,.mp3,.wav,.ogg,.flac,.opus" hidden>
+        <div class="meta" id="meta-bg"></div>
+        <div class="card-actions"><button class="mini danger hidden" data-remove="bg">সরান</button></div>
+      </div>
+
+      <div class="card" data-kind="logo">
+        <label class="drop" for="in-logo">
+          <span class="ic">🖼️</span>
+          <span class="txt"><b>Logo / Image <em class="opt">ঐচ্ছিক</em></b><small>PNG, JPG, WebP — ডিফল্ট: নিচে বাম কোণ</small></span>
+        </label>
+        <input id="in-logo" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+        <div class="meta" id="meta-logo"></div>
+        <div class="card-actions"><button class="mini danger hidden" data-remove="logo">সরান</button></div>
+      </div>
+    </div>
+
+    <div class="project-box editor-only">
+      <h3>প্রজেক্ট</h3>
+      <dl class="stats" id="projStats"></dl>
+      <label class="field">ভিডিও রিপিট ধরন
+        <select id="loopPattern">
+          <option value="alt">নরমাল → রিভার্স → নরমাল… (ডিফল্ট)</option>
+          <option value="normal">সবসময় নরমাল (সরাসরি রিপিট)</option>
+        </select>
+      </label>
+      <button class="btn block" id="btnRebuild">↻ অটো আবার তৈরি করুন</button>
+      <p class="hint">নিয়ম: প্রথম ক্লিপ নরমাল, দ্বিতীয় রিভার্স, তৃতীয় নরমাল… মেইন অডিও যতক্ষণ, ভিডিও ঠিক ততক্ষণ।</p>
+      <p class="hint">রিভার্স অংশে মূল ভিডিওর নিজস্ব সাউন্ড বন্ধ থাকে।</p>
+    </div>
+  </aside>
+
+  <!-- মাঝে: প্রিভিউ -->
+  <section class="panel stage-panel editor-only" id="stagePanel">
+    <div class="stage-wrap" id="stageWrap">
+      <div class="stage" id="stage">
+        <video id="video" playsinline preload="auto"></video>
+        <img id="logoEl" class="logo-overlay hidden" alt="logo" draggable="false">
+      </div>
+    </div>
+    <div class="transport">
+      <button class="btn icon" id="btnRestart" title="Restart">⏮</button>
+      <button class="btn icon big" id="btnPlay" title="Play / Pause (Space)">▶</button>
+      <span class="time"><span id="tCur">0:00.0</span> / <span id="tTot">0:00.0</span></span>
+      <input type="range" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Scrub">
+    </div>
+  </section>
+
+  <!-- ডান: অডিও ও লোগো -->
+  <aside class="panel inspector editor-only" id="rightPanel">
+    <h3>অডিও মিক্সার</h3>
+    <div class="slider"><label for="vVideo">Main Video Audio <output id="oVideo">100%</output></label><input type="range" id="vVideo" min="0" max="100" value="100"></div>
+    <div class="slider"><label for="vMain">Main Audio <output id="oMain">100%</output></label><input type="range" id="vMain" min="0" max="100" value="100"></div>
+    <div class="slider"><label for="vBg">Background Audio <output id="oBg">60%</output></label><input type="range" id="vBg" min="0" max="100" value="60"></div>
+
+    <div class="subbox" id="bgLoopBox">
+      <b>ব্যাকগ্রাউন্ড লুপ</b>
+      <label class="check"><input type="checkbox" id="bgInf" checked> শেষ পর্যন্ত রিপিট করুন</label>
+      <label class="num">রিপিট সংখ্যা <input type="number" id="bgRep" min="1" max="999" value="1" disabled></label>
+      <p class="hint" id="bgNote"></p>
+    </div>
+
+    <h3>লোগো</h3>
+    <div id="logoCtl">
+      <p class="hint">প্রিভিউতে লোগো মাউস/টাচ দিয়ে টেনে সরান।</p>
+      <div class="slider"><label for="lSize">আকার <output id="oSize">15%</output></label><input type="range" id="lSize" min="3" max="80" value="15"></div>
+      <div class="slider"><label for="lOpac">স্বচ্ছতা <output id="oOpac">100%</output></label><input type="range" id="lOpac" min="10" max="100" value="100"></div>
+      <div class="row">
+        <button class="btn" id="btnLogoReset">নিচে বামে ফিরিয়ে নিন</button>
+        <button class="btn danger" id="btnLogoRemove">লোগো সরান</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- নিচে: টাইমলাইন -->
+  <section class="panel timeline editor-only" id="timelinePanel">
+    <div class="tl-toolbar">
+      <div class="clipbar" id="clipBar">
+        <span class="lbl" id="clipLbl">ক্লিপ বেছে নিন</span>
+        <div class="seg" role="group" aria-label="Mode">
+          <button class="btn sm" id="cmNormal">▶ Normal</button>
+          <button class="btn sm" id="cmReverse">◀ Reverse</button>
+        </div>
+        <label class="num sm">শুরু <input type="number" id="cIn" step="0.1" min="0"></label>
+        <label class="num sm">শেষ <input type="number" id="cOut" step="0.1" min="0"></label>
+        <button class="btn sm" id="cLeft" title="বামে সরান">←</button>
+        <button class="btn sm" id="cRight" title="ডানে সরান">→</button>
+        <button class="btn sm" id="cDup" title="কপি">⧉</button>
+        <button class="btn sm danger" id="cDel" title="মুছুন">🗑</button>
+      </div>
+      <div class="zoom">
+        <label>Zoom <input type="range" id="zoom" min="1" max="100" value="20"></label>
+        <button class="btn sm" id="btnFit">Fit</button>
+      </div>
+    </div>
+    <div class="tl-grid">
+      <div class="tl-labels">
+        <div class="tl-l ruler-l"></div>
+        <div class="tl-l">Video</div>
+        <div class="tl-l">Main</div>
+        <div class="tl-l">BG</div>
+      </div>
+      <div class="tl-scroll" id="tlScroll">
+        <div class="tl-inner" id="tlInner">
+          <div class="ruler" id="ruler"></div>
+          <div class="track v" id="trkVideo"></div>
+          <div class="track a" id="trkMain"><canvas id="cvMain"></canvas></div>
+          <div class="track a" id="trkBg"><canvas id="cvBg"></canvas></div>
+          <div class="playhead" id="playhead"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Export modal -->
+<div class="modal hidden" id="exportModal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h2>MP4 এক্সপোর্ট</h2>
+    <div id="expSetup">
+      <label class="field">কোয়ালিটি
+        <select id="expQuality">
+          <option value="draft">ড্রাফট — দ্রুত, ছোট ফাইল</option>
+          <option value="standard" selected>স্ট্যান্ডার্ড — ভারসাম্য</option>
+          <option value="high">হাই — ধীর, সেরা মান</option>
+        </select>
+      </label>
+      <ul class="hint-list" id="expInfo"></ul>
+      <p class="hint">ব্রাউজারে সিঙ্গেল-থ্রেড FFmpeg চলে, তাই বড় ভিডিওতে সময় লাগে। রেন্ডার চলাকালীন ট্যাব খোলা রাখুন।</p>
+      <div class="row end">
+        <button class="btn" id="expCancelSetup">বাতিল</button>
+        <button class="btn primary" id="expStart">শুরু করুন</button>
+      </div>
+    </div>
+    <div id="expRun" class="hidden">
+      <div class="bar"><div class="fill" id="expFill"></div></div>
+      <div class="pct"><b id="expPct">0%</b> <span id="expStatus">শুরু হচ্ছে…</span></div>
+      <div class="row end"><button class="btn danger" id="expAbort">বন্ধ করুন</button></div>
+    </div>
+    <div id="expDone" class="hidden">
+      <p class="ok" id="expDoneMsg"></p>
+      <video id="expResult" controls playsinline></video>
+      <div class="row end">
+        <button class="btn" id="expClose">বন্ধ</button>
+        <a class="btn primary" id="expDownload" download="autocut-video.mp4">⬇ MP4 ডাউনলোড</a>
+      </div>
+    </div>
+    <div id="expError" class="hidden">
+      <p class="err" id="expErrMsg"></p>
+      <pre class="log" id="expLog"></pre>
+      <div class="row end">
+        <button class="btn" id="expErrClose">বন্ধ</button>
+        <button class="btn primary" id="expRetry">আবার চেষ্টা</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+<div class="busy hidden" id="busy"><div class="spin"></div><span id="busyMsg">প্রসেস হচ্ছে…</span></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
